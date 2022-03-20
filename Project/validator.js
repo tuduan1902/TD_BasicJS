@@ -28,6 +28,7 @@ function Validator(options){
                 errorElement.innerText = '';
                 inputElement.parentElement.classList.remove('invalid');
             }
+            return !errorMessage
     }
 
     // Lấy element của form cần validate
@@ -36,6 +37,32 @@ function Validator(options){
         // Khi submit form
         formElement.onsubmit = function(event){
             event.preventDefault();
+
+            var isFormValid = true;
+
+            // Lặp qua từng rules và validate
+            options.rules.forEach(function (rule){
+                var inputElement = formElement.querySelector(rule.selector);
+                var isValid = validate(inputElement, rule);
+                if (!isValid){
+                    isFormValid = false;
+                }
+            });
+             
+            if (isFormValid){
+                // Trường hợp submit với JS
+                if (typeof options.onSubmit === 'function'){
+                    var enableInputs = formElement.querySelectorAll('[name]');
+                    var formValues = Array.from(enableInputs).reduce(function (values, input){
+                        return (values[input.name] = input.value) && values;
+                    }, {});
+                    options.onSubmit(formValues);
+                }
+                // Trường hợp submit với hành vi mặc định 
+                else {
+                    formElement.submit();
+                }
+            }
         }
 
 
@@ -102,11 +129,11 @@ Validator.minLength = function (selector, min, message){
     };
 }
 
-Validator.isConfirmed = function (selector, getCofirmValue,  message){
+Validator.isConfirmed = function (selector, getConfirmValue,  message){
     return {
         selector: selector,
         test: function (value) {
-            return value === getCofirmValue ? undefined : message || 'Giá trị nhập vào không chính xác'
+            return value === getConfirmValue() ? undefined : message || 'Giá trị nhập vào không chính xác'
         }
     };
 }
