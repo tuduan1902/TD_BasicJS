@@ -17,7 +17,7 @@ function Validator(options){
         // test func: rules.test 
         var errorMessage;
         // Từ inputElement gọi đến thẻ form-group rồi gọi tới form-message
-        var errorElement = getParent(inputElement, options.formGroupSelector).querySelector(options.errorSelector);
+        var errorElement = getParent(inputElement, options.formGroupSelector).querySelectorAll(options.errorSelector);
 
         // Lấy ra các rules của selector
         var rules = selectorRules[rule.selector];
@@ -28,7 +28,9 @@ function Validator(options){
             switch(inputElement.type){
                 case 'checkbox':
                 case 'radio':
-                    errorMessage = rules[i](inputElement.value);
+                    errorMessage = rules[i](
+                        formElement.querySelectorAll(rule.selector + ':checked') 
+                    );
                     break;
                 default:
                     errorMessage = rules[i](inputElement.value);        
@@ -47,7 +49,7 @@ function Validator(options){
     }
 
     // Lấy element của form cần validate
-    var formElement = document.querySelector(options.form);
+    var formElement = document.querySelectorAll(options.form);
     if(formElement){
         // Khi submit form
         formElement.onsubmit = function(event){
@@ -57,7 +59,7 @@ function Validator(options){
 
             // Lặp qua từng rules và validate
             options.rules.forEach(function (rule){
-                var inputElement = formElement.querySelector(rule.selector);
+                var inputElement = formElement.querySelectorAll(rule.selector);
                 var isValid = validate(inputElement, rule);
                 if (!isValid){
                     isFormValid = false;
@@ -67,9 +69,29 @@ function Validator(options){
             if (isFormValid){
                 // Trường hợp submit với JS
                 if (typeof options.onSubmit === 'function'){
-                    var enableInputs = formElement.querySelectorAll('[name]');
+                    var enableInputs = formElement.querySelectorAllAll('[name]');
                     var formValues = Array.from(enableInputs).reduce(function (values, input){
-                        values[input.name] = input.value;
+                        
+                        switch(input.type) {
+                            case 'radio':
+                                values[input.name] = formElement.querySelector('input[name="' + input.name + '"]:checked').value;
+                                break;
+                            case 'checkbox':
+                                if (!input.matches(':checked')) {
+                                    values[input.name] = '';
+                                    return values;
+                                } 
+                                if (!Array.isArray(values[input.name])) {
+                                    values[input.name] = [];
+                                }
+                                values[input.name].push(input.value);
+                                break;
+                            case 'file':
+                                values[input.name] = input.files
+                                break;
+                            default:
+                                values[input.name] = input.value;
+                        }
                         return values;
                     }, {});
                     options.onSubmit(formValues);
@@ -81,7 +103,6 @@ function Validator(options){
             }
         }
 
-
         // Lặp qua mỗi rule và xử lý(lắng nghe sự kiện blur, input, ...)
         options.rules.forEach(function(rule){
 
@@ -90,24 +111,22 @@ function Validator(options){
                 selectorRules[rule.selector].push(rule.test);
             }else {
                 selectorRules[rule.selector] = [rule.test];
-            }
-              
+            }             
 
-            var inputElement = formElement.querySelector(rule.selector);
+            var inputElements = formElement.querySelectorAll(rule.selector);
             
-            if(inputElement){
+            Array.from(inputElements).forEach(function (inputElement){
                 // Xử lý trường hợp blur khỏi input
                 inputElement.onblur = function(){
                     validate(inputElement, rule);
                 }
-
                 // Xử lý mỗi khi người dùng nhập vào input
                 inputElement.oninput = function() {
                     var errorElement = getParent(inputElement, options.formGroupSelector).querySelector('.form-message');
                     errorElement.innerText = '';
                     getParent(inputElement, options.formGroupSelector).classList.remove('invalid');
                 }
-            }
+            });
         });
 
     }
@@ -121,7 +140,7 @@ Validator.isRequired = function (selector, message){
     return {
         selector: selector,
         test: function (value) {
-            return value.trim() ? undefined : message || 'Vui lòng nhập trường này'
+            return value ? undefined : message || 'Vui lòng nhập trường này'
         }
     };
 }
