@@ -108,4 +108,6 @@
 // 11. Tagged template literal
     
 // 12. Modules: Import / Export 
+import logger from './logger.js'
+console.log(logger)
 
